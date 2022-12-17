@@ -23,10 +23,6 @@ function disconnect(socket) {
   console.log(socket.id + " disconnected");
 }
 
-function recebeMSG(socket) {
-  console.log("recebeu mensagem do cliente");
-}
-
 io.on("connection", (socket) => {
   socket.on("authentication", (data) => {
     authenticate(
@@ -47,6 +43,14 @@ io.on("connection", (socket) => {
       }.bind(this)
     );
   });
+
+  socket.on('msg', (msg) => {
+    io.emit('msg', msg);
+  });
+
+  socket.on('lista_salas', () => {
+    io.emit('lista_salas', [21312,1231,12312]);
+  });
 });
 
 app.use((req, res, next) => {
@@ -60,7 +64,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 //app.use(express.static(path.join(__dirname, "public")));
 app.use(
-  express.static(path.join(__dirname, "../dist"), { extensions: ["html"] })
+  express.static(path.join(__dirname, "../react-pwa/dist"))
 );
 
 // catch 404 and forward to error handler
