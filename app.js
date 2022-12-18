@@ -1,22 +1,38 @@
 var express = require("express");
 var path = require("path");
 var cookieParser = require("cookie-parser");
-const dbo = require("./db/conn");
 var logger = require("morgan");
+var cors = require("cors");
+var ObjectId = require("mongodb").ObjectId;
+
+const dbo = require("./db/conn");
+var loginRouter = require("./routes/login");
+var registerRouter = require("./routes/register");
 
 var app = express();
 var server = require("http").Server(app);
 var io = require("socket.io")(server);
 
-function authenticate(data, callback) {
-  console.log("verifica se cliente pode connectar");
-  var username = data.username;
-  var password = data.password;
-  if (username == "John" && password == "secret") {
-    callback(null, true);
+const rooms = [
+  [22, false],
+  [42, false],
+  [69, false],
+];
+
+async function authenticate(data, callback) {
+  console.log("verifica se cliente pode connectar", data);
+
+  const db = dbo.getDb();
+  try {
+    const result = await db
+      .collection("user")
+      .findOne({ _id: new ObjectId(data.id) });
+
+    return callback(null, result.email);
+  } catch (err) {
+    console.log("error", err);
+    return callback("error", { message: "ID incorreto" });
   }
-  callback(null, true);
-  //eturn callback("error", { message: "ID/senha incorretos" });
 }
 
 function disconnect(socket) {
@@ -37,19 +53,25 @@ io.on("connection", (socket) => {
           socket.join("/validados");
           io.in("/validados").emit(
             "msg",
-            "usuario " + data.username + " entrou na sala"
+            "usuario " + message + " entrou na sala"
           );
         }
       }.bind(this)
     );
   });
 
-  socket.on('msg', (msg) => {
-    io.emit('msg', msg);
+  socket.on("msg", (msg) => {
+    io.emit("msg", msg);
   });
 
-  socket.on('lista_salas', () => {
-    io.emit('lista_salas', [21312,1231,12312]);
+  socket.on("room", (data) => {
+    console.log("room", data);
+    rooms[data[0]] = data[1];
+    setTimeout(() => {
+      const status = !rooms[data[0]];
+      rooms[data[0]] = status;
+      io.emit("room", [data[0], status]);
+    }, 2000);
   });
 });
 
@@ -58,14 +80,16 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(cors());
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 //app.use(express.static(path.join(__dirname, "public")));
-app.use(
-  express.static(path.join(__dirname, "../react-pwa/dist"))
-);
+app.use(express.static(path.join(__dirname, "../react-pwa/dist")));
+
+app.use("/api/login", loginRouter);
+app.use("/api/register", registerRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

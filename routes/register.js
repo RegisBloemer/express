@@ -16,7 +16,6 @@ router.post("/", async (req, res, next) => {
         const result = await db.collection("user").insertOne({
           email: String(req.body.email),
           pass: String(req.body.pass),
-          city: String(req.body.city),
         });
         console.log(`Added a new match with id ${result.insertedId}`);
         res.status(200).json({ id: result.insertedId });
