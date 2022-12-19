@@ -27,8 +27,11 @@ async function authenticate(data, callback) {
     const result = await db
       .collection("user")
       .findOne({ _id: new ObjectId(data.id) });
-
-    return callback(null, result.email);
+    console.log("result --- ", result);
+    if (result) {
+      return callback(null, result.email);
+    }
+    return callback("error", { message: "ID incorreto" });
   } catch (err) {
     console.log("error", err);
     return callback("error", { message: "ID incorreto" });
@@ -40,6 +43,9 @@ function disconnect(socket) {
 }
 
 io.on("connection", (socket) => {
+  // aqui
+
+
   socket.on("authentication", (data) => {
     authenticate(
       data,
@@ -67,30 +73,32 @@ io.on("connection", (socket) => {
   socket.on("room", (data) => {
     console.log("room", data);
     rooms[data[0]] = data[1];
+    io.in("/validados").emit("room", [data[0], rooms[data[0]]]);
+    
     setTimeout(() => {
       const status = !rooms[data[0]];
       rooms[data[0]] = status;
-      io.emit("room", [data[0], status]);
+      io.in("/validados").emit("room", [data[0], status]);
     }, 2000);
   });
 });
 
-app.use((req, res, next) => {
-  res.io = io;
-  next();
-});
-
-app.use(cors());
+app.use(cors({
+  origin: '*'
+}));
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 //app.use(express.static(path.join(__dirname, "public")));
-app.use(express.static(path.join(__dirname, "../react-pwa/dist")));
+const front = path.join(__dirname, "../react-pwa/dist")
+console.log("FRONT --",front)
+app.use(express.static(front));
 
 app.use("/api/login", loginRouter);
 app.use("/api/register", registerRouter);
 
+/*
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   var err = new Error("Not Found");
@@ -121,7 +129,7 @@ app.use(function (err, req, res, next) {
     error: {},
   });
 });
-
+*/
 // perform a database connection when the server starts
 dbo.connectToServer((err) => {
   if (err) {
